@@ -1,6 +1,7 @@
 import json
 import os
 from dotenv import load_dotenv
+from src.utils import create_timestamped_filename, get_latest_file
 
 # Get the root directory path of the project
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -33,32 +34,41 @@ def process_products():
     data_dir = os.getenv("DATA_DIR", 'data')
     raw_dir = os.getenv("RAW_DATA_DIR", 'raw')
     processed_dir = os.getenv("PROCESSED_DATA_DIR", 'processed')
-    input_filename = os.getenv("RAW_DATA_FILENAME", 'available_products.json')
-    output_filename = os.getenv("PROCESSED_DATA_FILENAME", 'processed_products.json')
+
+    # Get the latest raw data file
+    input_filename = get_latest_file(os.path.join(PROJECT_ROOT, data_dir, raw_dir), 'available_products')
+    if not input_filename:
+        print("No raw data files found. Please run the scraper first.")
+        return
+
+    output_filename = create_timestamped_filename('processed_products')
 
     # Create absolute paths
     input_dir = os.path.join(PROJECT_ROOT, data_dir, raw_dir)
     output_dir = os.path.join(PROJECT_ROOT, data_dir, processed_dir)
 
     # Ensure directories exist
-    os.makedirs(input_dir, exist_ok=True)
     os.makedirs(output_dir, exist_ok=True)
 
     input_path = os.path.join(input_dir, input_filename)
     output_path = os.path.join(output_dir, output_filename)
 
-    # Check if input file exists
-    if not os.path.exists(input_path):
-        print(f"The file {input_path} does not exist. Please run the scraper first.")
-        return
-
     with open(input_path, 'r', encoding='utf-8') as f:
-        available_products = json.load(f)
+        raw_data = json.load(f)
 
+    raw_timestamp = raw_data.get('timestamp')
+    available_products = raw_data.get('products', [])
     processed_products = [extract_relevant_info(product) for product in available_products]
 
+    # Create processed data structure with timestamp
+    processed_data = {
+        'timestamp': raw_timestamp,
+        'processing_timestamp': create_timestamped_filename('')[:-5],  # Remove '.json' from the end
+        'products': processed_products
+    }
+
     with open(output_path, 'w', encoding='utf-8') as f:
-        json.dump(processed_products, f, ensure_ascii=False, indent=4)
+        json.dump(processed_data, f, ensure_ascii=False, indent=4)
 
     print(f"{len(processed_products)} products have been processed and saved to {output_path}")
 

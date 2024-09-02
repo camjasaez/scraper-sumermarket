@@ -3,6 +3,7 @@ import os
 from bs4 import BeautifulSoup
 import requests
 from dotenv import load_dotenv
+from src.utils import create_timestamped_filename, add_timestamp_to_json
 
 # Get the root directory path of the project
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -34,12 +35,16 @@ def scrape_products():
     available_products = data['props']['pageProps']['dehydratedState']['queries'][0]['state']['data'][
         'availableProducts']
 
+    # Add timestamp to the scraped data
+    available_products = add_timestamp_to_json({'products': available_products})
+
     return available_products
 
 
 def save_raw_data(data, filename=None):
     if filename is None:
-        filename = os.getenv("RAW_DATA_FILENAME", 'available_products.json')
+        base_filename = os.getenv("RAW_DATA_FILENAME", 'available_products')
+        filename = create_timestamped_filename(base_filename)
 
     data_dir = os.getenv("DATA_DIR", 'data')
     raw_dir = os.getenv("RAW_DATA_DIR", 'raw')
@@ -59,6 +64,6 @@ if __name__ == "__main__":
     try:
         products = scrape_products()
         save_raw_data(products)
-        print(f"{len(products)} products have been saved")
+        print(f"{len(products['products'])} products have been saved")
     except Exception as e:
         print(f"Error executing the scraper: {str(e)}")
